@@ -1,40 +1,70 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { UsersService } from '../users/users.service';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from './user.entity';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from './dto/jwt-payload.interface';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
+  private logger = new Logger('AuthService', { timestamp: true });
   constructor(
-    private usersService: UsersService,
+    @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
-    }
-    return null;
-  }
+  async createUser(authCredentialsDto: RegisterDto): Promise<void> {
+    const { email, password } = authCredentialsDto;
 
-  async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = this.usersRepository.create({
+      email,
+      password: hashedPassword,
+    });
+
+    try {
+      await this.usersRepository.save(user);
+      this.logger.log(`Created user with email: ${user.email}`);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Username already exists');
+      } else {
+        throw new InternalServerErrorException();
       }
-    };
+    }
   }
 
-  async register(email: string, password: string, name?: string) {
-    const user = await this.usersService.create(email, password, name);
-    const { password: _, ...result } = user;
-    return result;
+  async signIn(
+    authCredentialsDto: LoginDto,
+  ): Promise<{ accessToken: string }> {
+    const { password, email } = authCredentialsDto;
+    this.logger.verbose(`User: "${email}" trying to sign in`);
+    const user = await this.usersRepository.findOne({
+      where: {
+        email,
+      },
+    });
+
+    if (user && (await bcrypt.compare(password, user.password))) {
+      const payload: JwtPayload = { email };
+      const accessToken = this.jwtService.sign(payload);
+
+      this.logger.log(`User: "${user.email}" is signed in`);
+
+      return { accessToken };
+    } else {
+      throw new UnauthorizedException('Please check your login credentials');
+    }
   }
-} 
+}
