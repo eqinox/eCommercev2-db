@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { TransformInterceptor } from './transform.interceptor';
@@ -8,11 +9,45 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
-  app.enableCors();
+  
+  // Enable CORS with more permissive settings for development
+  app.enableCors({
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+  });
+  
+  // Enable validation
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalInterceptors(new TransformInterceptor());
-  const port = process.env.APP_PORT ?? 5000;
-  await app.listen(port);
-  logger.log(`Application listening on port ${port}`);
+  
+  // Configure Swagger
+  const config = new DocumentBuilder()
+    .setTitle('E-commerce API')
+    .setDescription('The E-commerce API documentation')
+    .setVersion('1.0')
+    .addTag('auth', 'Authentication endpoints')
+    .addTag('products', 'Product management endpoints')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controllers!
+    )
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(process.env.APP_PORT ?? 5000);
+  logger.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
