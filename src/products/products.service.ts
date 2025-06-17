@@ -86,9 +86,9 @@ export class ProductsService {
 
   async deleteProduct(id: string, user: User): Promise<ProductResponseDto> {
     const product = await this.findOne(id);
-
+    
     if (product.user.id !== user.id) {
-      throw new NotFoundException(`Product with ID "${id}" not found`);
+      throw new NotFoundException(`Unauthorized to delete product`);
     }
 
     const result = await this.productRepository.remove(product);
