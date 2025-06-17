@@ -4,14 +4,15 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
-import { GetProductsFilterDto } from '../tasks/dto/get-tasts-filter.dto';
+import { CreateProductDto, SizeDto } from './dto/create-product.dto';
+import { GetProductsFilterDto } from './dto/get-products-filter.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Product } from './product.entity';
 import { Repository } from 'typeorm';
 import { User } from 'src/auth/user.entity';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { ProductStatus } from './product-status.enum';
 
 @Injectable()
 export class ProductsService {
@@ -58,15 +59,27 @@ export class ProductsService {
     }
   }
 
+  private calculateStock(sizes: SizeDto[]): number {
+    return sizes.reduce((total, size) => total + size.quantity, 0);
+  }
+
+  private updateProductStatus(product: Product): void {
+    product.stock = this.calculateStock(product.sizes);
+    product.status = product.stock > 0 ? ProductStatus.IN_STOCK : ProductStatus.OUT_OF_STOCK;
+  }
+
   async createProduct(createProductDto: CreateProductDto, user: User): Promise<ProductResponseDto> {
-    const { description, name, price } = createProductDto;
+    const { name, description, price, sizes } = createProductDto;
+
     const product = this.productRepository.create({
       name,
       description,
+      price,
+      sizes,
       user,
-      price
     });
 
+    this.updateProductStatus(product);
     const savedProduct = await this.productRepository.save(product);
     return savedProduct;
   }
@@ -95,14 +108,20 @@ export class ProductsService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto, user: User): Promise<ProductResponseDto> {   
+  async updateProduct(id: string, updateProductDto: UpdateProductDto, user: User): Promise<ProductResponseDto> {
+    const { name, description, price, sizes } = updateProductDto;
     const product = await this.findOne(id);
 
     if (product.user.id !== user.id) {
       throw new NotFoundException(`Product with ID "${id}" not found`);
     }
 
-    Object.assign(product, updateProductDto);
+    if (name) product.name = name;
+    if (description) product.description = description;
+    if (price) product.price = price;
+    if (sizes) product.sizes = sizes;
+
+    this.updateProductStatus(product);
     const updatedProduct = await this.productRepository.save(product);
     return updatedProduct;
   }

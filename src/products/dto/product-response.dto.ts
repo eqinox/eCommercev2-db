@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ProductStatus } from '../product-status.enum'; 
+import { SizeDto } from './create-product.dto';
 
 export class ProductResponseDto {
   @ApiProperty({
@@ -44,4 +45,20 @@ export class ProductResponseDto {
     description: 'The date when the product was last updated'
   })
   updated_at: Date;
+
+  @ApiProperty({
+    example: [
+      { size: "S", quantity: 2 },
+      { size: "M", quantity: 3 },
+      { size: "L", quantity: 1 }
+    ],
+    description: 'The available sizes and quantities of the product',
+  })
+  sizes: SizeDto[];
+
+  @ApiProperty({
+    example: 10,
+    description: 'The total stock quantity of the product',
+  })
+  stock: number;
 } 

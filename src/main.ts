@@ -21,8 +21,15 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   
-  // Enable validation
-  app.useGlobalPipes(new ValidationPipe());
+  // Enable validation with transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    })
+  );
   app.useGlobalInterceptors(new TransformInterceptor());
   
   // Configure Swagger

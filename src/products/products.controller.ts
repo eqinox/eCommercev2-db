@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { GetProductsFilterDto } from '../tasks/dto/get-tasts-filter.dto';
+import { GetProductsFilterDto } from './dto/get-products-filter.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from 'src/auth/get-user.decorator';
 import { User } from 'src/auth/user.entity';
@@ -116,6 +116,6 @@ export class ProductsController {
     this.logger.verbose(
       `User "${user.email}" trying to update product with id ${id}. Data: ${JSON.stringify(updateProductDto)}`,
     );
-    return this.productService.update(id, updateProductDto, user);
+    return this.productService.updateProduct(id, updateProductDto, user);
   }
 } 

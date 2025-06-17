@@ -3,6 +3,7 @@ import { User } from 'src/auth/user.entity';
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { ProductStatus } from './product-status.enum';
+import { SizeDto } from './dto/create-product.dto';
 
 @Entity()
 export class Product {
@@ -36,6 +37,24 @@ export class Product {
     default: ProductStatus.IN_STOCK
   })
   status: ProductStatus;
+
+  @ApiProperty({
+    example: [
+      { size: "S", quantity: 2 },
+      { size: "M", quantity: 3 },
+      { size: "L", quantity: 1 }
+    ],
+    description: 'The available sizes and quantities of the product',
+  })
+  @Column('jsonb')
+  sizes: SizeDto[];
+
+  @ApiProperty({
+    example: 10,
+    description: 'The total stock quantity of the product',
+  })
+  @Column({ default: 0 })
+  stock: number;
 
   @ApiProperty({
     type: () => User,
